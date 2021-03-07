@@ -14,7 +14,7 @@ namespace AquacraftBot.Services.BotServices
     {
         public static async Task Process(CommandErrorEventArgs e, EventId eventId)
         {
-            string ContactUs = $" | **Contact Us:** [Discord]({SharedData.serverInv}) <{SharedData.mailto}>";
+            string ContactUs = $" | **Contact Us:** [Discord]({GlobalData.serverInv}) <{GlobalData.mailto}>";
             switch (e.Exception)
             {
                 case CommandNotFoundException:

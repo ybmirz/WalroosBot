@@ -6,6 +6,7 @@ using DSharpPlus.EventArgs;
 using DSharpPlus.Interactivity;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -96,6 +97,7 @@ namespace IamagesDiscordBot
 
             //client connection to bot application on the discord api
             await _Client.ConnectAsync();
+            GlobalData.startTime = DateTime.Now;
 
             await Task.Delay(-1);
         }
