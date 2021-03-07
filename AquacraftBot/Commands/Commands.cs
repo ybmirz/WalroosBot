@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace AquacraftBot
 {
-    public class Commands
+    public class Commands : BaseCommandModule
     {
         [Command("ping"), Description("Checks your ping")]
         public async Task Ping(CommandContext ctx)

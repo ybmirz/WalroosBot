@@ -1,0 +1,10 @@
+{
+  "BotName": "WalrossBot",
+  "Token": "Nzg1ODI0OTE5NTg1MDMwMTY1.X89efA.kJeGMSCJRrtBGk7_4tng0c6spyQ",
+  "Prefixes": [ "w!", "q!" ],
+  "EnableModeration": true,
+  "EnableSuggestions": true,
+  "EnableFunCommands": true,
+  "EnableModCommands": true,
+  "EnableUtilCommands": true
+}

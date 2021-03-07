@@ -10,6 +10,7 @@ namespace AquacraftBot.Services
         //Just a class for Global Interclass Data that we might need
         public static DateTime startTime;
         public static DiscordColor defaultColour = new DiscordColor("#1167b1");
+        public static List<string> prefixes;
         public static string logoURI = "./Resources/BotLogo.jpg";
     }
 

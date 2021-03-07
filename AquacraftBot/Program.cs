@@ -1,4 +1,5 @@
-﻿using AquacraftBot.Services;
+﻿using AquacraftBot;
+using AquacraftBot.Services;
 using AquacraftBot.Services.BotServices;
 using DSharpPlus;
 using DSharpPlus.CommandsNext;
@@ -19,7 +20,7 @@ namespace IamagesDiscordBot
         static void Main(string[] args)
         {
             var json = string.Empty;
-            using (var fs = File.OpenRead("config.json"))
+            using (var fs = File.OpenRead("./Resources/config.json"))
             using (var sr = new StreamReader(fs, new UTF8Encoding(false)))
                 json = sr.ReadToEnd();
 
@@ -33,7 +34,7 @@ namespace IamagesDiscordBot
     {
         private static string _BotName { set; get; }
         private string _token { set; get; }
-        private IEnumerable<string> _prefixes { set; get; }
+        private List<string> _prefixes { set; get; } = new List<string>();
         private bool _EnableModeration { set; get; } = true;
         private bool _EnableSuggestions { set; get; } = false;
         private bool _EnableFunCommands { set; get; } = false;
@@ -44,7 +45,10 @@ namespace IamagesDiscordBot
         {
             _BotName = BotConfig.BotName;
             _token = BotConfig.token;
-            _prefixes = BotConfig.prefixes;
+            foreach (string prefix in BotConfig.prefixes)
+            {
+                _prefixes.Add(prefix);
+            }
             _EnableModeration = BotConfig.EnableModeration;
             _EnableSuggestions = BotConfig.EnableSuggestions;
             _EnableFunCommands = BotConfig.EnableFunCommands;
@@ -66,7 +70,8 @@ namespace IamagesDiscordBot
                 TokenType = TokenType.Bot,
                 AutoReconnect = true,
                 MinimumLogLevel = LogLevel.Debug,
-                LargeThreshold = 500
+                LargeThreshold = 500,
+                Intents = DiscordIntents.DirectMessages | DiscordIntents.Guilds | DiscordIntents.GuildMembers | DiscordIntents.GuildMessages | DiscordIntents.GuildMessageReactions | DiscordIntents.GuildBans | DiscordIntents.GuildInvites// only looks at DMs for events
             };
 
             _Client = new DiscordClient(config);
@@ -79,7 +84,7 @@ namespace IamagesDiscordBot
             var commandsConfig = new CommandsNextConfiguration
             {
                 StringPrefixes = _prefixes,
-                EnableDms = true,
+                EnableDms = false, // for now
                 EnableMentionPrefix = false,
                 EnableDefaultHelp = true,
                 DmHelp = false
@@ -90,14 +95,16 @@ namespace IamagesDiscordBot
             _Commands.CommandErrored += Command_CommandError;
 
 
-            //_Commands.RegisterCommands<IamagesCmds>();
+            _Commands.RegisterCommands<Commands>();
             //_Commands.RegisterCommands<UtilCmds>();
             //_Commands.SetHelpFormatter<HelpFormatter>();
 
 
             //client connection to bot application on the discord api
             await _Client.ConnectAsync();
+            //assigning global data values
             GlobalData.startTime = DateTime.Now;
+            GlobalData.prefixes = _prefixes;
 
             await Task.Delay(-1);
         }
@@ -105,12 +112,12 @@ namespace IamagesDiscordBot
         //logging stuff onto the console line (for all of these might want to log into a text file if needed)
         private Task Client_OnReady(DiscordClient sender, ReadyEventArgs e)
         {
-            sender.Logger.LogInformation(BotEventId, $"The {_BotName} is up and ready");
+            sender.Logger.LogInformation(BotEventId, $"The {_BotName} is up and ready with the following prefixes: {string.Join(",", _prefixes) ??  "No prefix provided"}");
             return Task.CompletedTask;
         }
         private Task Client_GuildConnected(DiscordClient sender, GuildCreateEventArgs e)
         {
-            sender.Logger.LogInformation(BotEventId, $"{_BotName} is now connected to {e.Guild.Name}({e.Guild.Id})");
+            sender.Logger.LogInformation(BotEventId, $"{_BotName} is now connected to \"{e.Guild.Name}\"({e.Guild.Id})");
             //read the prefixes json and then read (not needed right now, as only one main prefix at hand)
             return Task.CompletedTask;
         }
@@ -121,7 +128,7 @@ namespace IamagesDiscordBot
         }
         private Task Command_CommandExecuted(CommandsNextExtension sender, CommandExecutionEventArgs e)
         {
-            sender.Client.Logger.LogInformation(BotEventId, message: $"{e.Context.User} has executed \"{e.Command.Name}\" cmd with message {e.Context.Message} [{e.Context.Channel.Name} ({e.Context.Channel.Id})]"); //for now, not yet implement guilds in the log
+            sender.Client.Logger.LogInformation(BotEventId, message: $"{e.Context.User} has executed \"{e.Command.Name}\" cmd with message '{e.Context.Message.Content}' [{e.Context.Channel.Name} ({e.Context.Channel.Id})]"); //for now, not yet implement guilds in the log
             return Task.CompletedTask;
         }
         private async Task Command_CommandError(CommandsNextExtension sender, CommandErrorEventArgs e)

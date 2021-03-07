@@ -32,7 +32,7 @@ namespace AquacraftBot.Services.BotServices
             var embed = new DiscordEmbedBuilder()
                 .WithTitle(title + " " + titleEmote)
                 .WithDescription(desc)
-                .WithFooter($"i!help for more Info", GlobalData.logoURI)
+                .WithFooter($"{GlobalData.prefixes[0]}help for more Info", GlobalData.logoURI)
                 .WithTimestamp(DateTime.Now)
                 .WithColor(ErrorColour);
 
