@@ -9,6 +9,8 @@ namespace AquacraftBot.Services
     {
         [JsonProperty("BotName")]
         public string BotName { set; get; }
+        [JsonProperty("LogoURL")]
+        public string LogoURL { set; get; }
         [JsonProperty("Token")]
         public string token { set; get; }
         [JsonProperty("Prefixes")]

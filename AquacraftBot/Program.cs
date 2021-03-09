@@ -24,6 +24,7 @@ namespace IamagesDiscordBot
             using (var sr = new StreamReader(fs, new UTF8Encoding(false)))
                 json = sr.ReadToEnd();
 
+            Console.WriteLine("Press ctrl^c to end the Bot!");
             var config = JsonConvert.DeserializeObject<BotConfiguration>(json);
             var bot = new Bot(config);
             bot.RunAsync().GetAwaiter().GetResult();
@@ -54,9 +55,10 @@ namespace IamagesDiscordBot
             _EnableFunCommands = BotConfig.EnableFunCommands;
             _EnableModCommands = BotConfig.EnableModCommands;
             _EnableUtilCommands = BotConfig.EnableUtilCommands;
+            GlobalData.logoURL = BotConfig.LogoURL;
         }
 
-        public readonly EventId BotEventId = new EventId(42, _BotName);
+        public readonly EventId BotEventId = new EventId(id: 42, name: _BotName);
         public DiscordClient _Client { get; private set; }
         public CommandsNextExtension _Commands { get; private set; }
         public InteractivityExtension _Interactivity { get; private set; } // not yet set for now
@@ -97,7 +99,7 @@ namespace IamagesDiscordBot
 
             _Commands.RegisterCommands<Commands>();
             //_Commands.RegisterCommands<UtilCmds>();
-            //_Commands.SetHelpFormatter<HelpFormatter>();
+            _Commands.SetHelpFormatter<HelpFormatter>();
 
 
             //client connection to bot application on the discord api
@@ -105,6 +107,7 @@ namespace IamagesDiscordBot
             //assigning global data values
             GlobalData.startTime = DateTime.Now;
             GlobalData.prefixes = _prefixes;
+            GlobalData.botName = _BotName;
 
             await Task.Delay(-1);
         }
@@ -135,7 +138,13 @@ namespace IamagesDiscordBot
         {
             await ErrorHandlers.Process(e, BotEventId);
             //default logging to console below:
-            sender.Client.Logger.LogWarning(BotEventId, $"{e.Command.Name} Command Error: {e.Exception.GetType()}: {e.Exception.Message ?? "<no message>"} by [{e.Context.User}] in [{e.Context.Channel.Name} ({e.Context.Channel.Id})] "); //changes from time to time
+            if (e.Command != null)
+            {
+                sender.Client.Logger.LogWarning(BotEventId, $"{e.Command.Name ?? "NULL"} Command Error: {e.Exception.GetType()}: {e.Exception.Message ?? "<no message>"} by [{e.Context.User}] in [{e.Context.Channel.Name} ({e.Context.Channel.Id})] "); //changes from time to time
+            }
+            else {
+                sender.Client.Logger.LogWarning(BotEventId, $"{e.Context.User} tried to look for {e.Context.Message.Content} in [{e.Context.Channel.Name} ({e.Context.Channel.Id})]");
+            }
         }
     }
 }

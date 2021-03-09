@@ -11,7 +11,8 @@ namespace AquacraftBot.Services
         public static DateTime startTime;
         public static DiscordColor defaultColour = new DiscordColor("#1167b1");
         public static List<string> prefixes;
-        public static string logoURI = "./Resources/BotLogo.jpg";
+        public static string logoURL = "https://cdn.discordapp.com/embed/avatars/0.png";
+        public static string botName;
     }
 
     public enum ResponseType
