@@ -18,7 +18,8 @@ namespace AquacraftBot.Services.BotServices
                 ResponseType.Warning => DiscordEmoji.FromName(ctx.Client, ":exclamation:"),
                 ResponseType.Error => DiscordEmoji.FromName(ctx.Client, ":mag:"),
                 ResponseType.Missing => DiscordEmoji.FromName(ctx.Client, ":no_entry:"),
-                _ => null
+                ResponseType.Default => DiscordEmoji.FromName(ctx.Client, ":bulb:"),
+                _ => DiscordEmoji.FromName(ctx.Client, ":bulb:")
             };
             var ErrorColour = type switch
             {
@@ -38,7 +39,21 @@ namespace AquacraftBot.Services.BotServices
 
             var msg = await ctx.Channel.SendMessageAsync(embed: embed)
                 .ConfigureAwait(false);
-            await Task.Delay(15000); // 15 seconds before deleting the error message that pops up
+            await Task.Delay(12000); // 15 seconds before deleting the error message that pops up
+            await msg.DeleteAsync().ConfigureAwait(false);
+        }
+
+        public static async Task SendWIPEmbedAsync(CommandContext ctx)
+        {
+            var sorryEmote = DiscordEmoji.FromName(ctx.Client, ":confounded:");
+
+            var embed = new DiscordEmbedBuilder()
+                .WithColor(GlobalData.defaultColour)
+                .WithAuthor(GlobalData.botName, null, GlobalData.logoURL)
+                .WithDescription($"Sorry! The command {GlobalData.prefixes[0]}{ctx.Command.QualifiedName} is still a work in progress {sorryEmote}");
+
+            var msg = await ctx.RespondAsync(embed: embed).ConfigureAwait(false);
+            await Task.Delay(12000); //12 seconds
             await msg.DeleteAsync().ConfigureAwait(false);
         }
 

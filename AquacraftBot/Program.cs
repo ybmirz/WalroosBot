@@ -1,48 +1,58 @@
-﻿using AquacraftBot;
+﻿using AquacraftBot.Commands.FunCmds;
+using AquacraftBot.Commands.ModerationCmds;
+using AquacraftBot.Commands.SuggestionCmds;
+using AquacraftBot.Commands.UtilCommands;
 using AquacraftBot.Services;
 using AquacraftBot.Services.BotServices;
+using AquacraftBot.Services.TickettingServices;
 using DSharpPlus;
 using DSharpPlus.CommandsNext;
+using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
 using DSharpPlus.Interactivity;
+using DSharpPlus.Interactivity.Enums;
+using DSharpPlus.Interactivity.Extensions;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Text;
 using System.Threading.Tasks;
+using System.Timers;
 
-namespace IamagesDiscordBot
+namespace AquacraftBot
 {
     class Program
     {
-        static void Main(string[] args)
+        public static void Main(string[] args)
         {
-            var json = string.Empty;
-            using (var fs = File.OpenRead("./Resources/config.json"))
-            using (var sr = new StreamReader(fs, new UTF8Encoding(false)))
-                json = sr.ReadToEnd();
-
-            Console.WriteLine("Press ctrl^c to end the Bot!");
-            var config = JsonConvert.DeserializeObject<BotConfiguration>(json);
-            var bot = new Bot(config);
-            bot.RunAsync().GetAwaiter().GetResult();
-            //text file closing 
+            CreateHostBuilder(args).Build().Run();
         }
+
+        public static IHostBuilder CreateHostBuilder(string[] args) =>
+            Host.CreateDefaultBuilder(args)
+            .ConfigureWebHostDefaults(webBuilder =>
+            {
+                webBuilder.UseStartup<Startup>();
+                webBuilder.UseUrls("http://localhost:5002", "http://localhost:5003");
+            });
     }
     public class Bot
     {
+        //Things needed for general purposes of the bot
         private static string _BotName { set; get; }
         private string _token { set; get; }
         private List<string> _prefixes { set; get; } = new List<string>();
-        private bool _EnableModeration { set; get; } = true;
-        private bool _EnableSuggestions { set; get; } = false;
-        private bool _EnableFunCommands { set; get; } = false;
-        private bool _EnableModCommands { set; get; } = false;
-        private bool _EnableUtilCommands { set; get; } = false;
 
-        public Bot(BotConfiguration BotConfig)
+        //Things needed to connect to the discord API
+
+        public readonly EventId BotEventId = new EventId(id: 42, name: _BotName);
+        public DiscordClient _Client { get; private set; }
+        public CommandsNextExtension _Commands { get; private set; }
+        public InteractivityExtension _Interactivity { get; private set; } // not yet set for now
+        public int _count { get; private set; }
+
+        public Bot(BotConfiguration BotConfig, IServiceProvider services)
         {
             _BotName = BotConfig.BotName;
             _token = BotConfig.token;
@@ -50,21 +60,7 @@ namespace IamagesDiscordBot
             {
                 _prefixes.Add(prefix);
             }
-            _EnableModeration = BotConfig.EnableModeration;
-            _EnableSuggestions = BotConfig.EnableSuggestions;
-            _EnableFunCommands = BotConfig.EnableFunCommands;
-            _EnableModCommands = BotConfig.EnableModCommands;
-            _EnableUtilCommands = BotConfig.EnableUtilCommands;
             GlobalData.logoURL = BotConfig.LogoURL;
-        }
-
-        public readonly EventId BotEventId = new EventId(id: 42, name: _BotName);
-        public DiscordClient _Client { get; private set; }
-        public CommandsNextExtension _Commands { get; private set; }
-        public InteractivityExtension _Interactivity { get; private set; } // not yet set for now
-
-        public async Task RunAsync()
-        {
 
             var config = new DiscordConfiguration
             {
@@ -72,8 +68,8 @@ namespace IamagesDiscordBot
                 TokenType = TokenType.Bot,
                 AutoReconnect = true,
                 MinimumLogLevel = LogLevel.Debug,
-                LargeThreshold = 500,
-                Intents = DiscordIntents.DirectMessages | DiscordIntents.Guilds | DiscordIntents.GuildMembers | DiscordIntents.GuildMessages | DiscordIntents.GuildMessageReactions | DiscordIntents.GuildBans | DiscordIntents.GuildInvites// only looks at DMs for events
+                LargeThreshold = 500,           
+                Intents = DiscordIntents.AllUnprivileged           
             };
 
             _Client = new DiscordClient(config);
@@ -82,35 +78,200 @@ namespace IamagesDiscordBot
             _Client.GuildAvailable += Client_GuildConnected;
             _Client.ClientErrored += Client_ClientError;
 
+            //everytime a channel is made in the guild
+            _Client.ChannelCreated += Client_ChannelCreated;
+            _Client.MessageReactionAdded += _Client_MessageReactionAdded;
+            _Client.MessageCreated += _Client_MessageCreated;
+
             //might wanna add a interactivity here along with its config
             var commandsConfig = new CommandsNextConfiguration
             {
                 StringPrefixes = _prefixes,
-                EnableDms = false, // for now
+                EnableDms = true,
                 EnableMentionPrefix = false,
                 EnableDefaultHelp = true,
-                DmHelp = false
+                DmHelp = false,
+                Services = services
             };
 
             _Commands = _Client.UseCommandsNext(commandsConfig);
             _Commands.CommandExecuted += Command_CommandExecuted;
             _Commands.CommandErrored += Command_CommandError;
 
-
-            _Commands.RegisterCommands<Commands>();
+            if (BotConfig.EnableSuggestions)
+                _Commands.RegisterCommands<SuggestionCmds>();
+            if (BotConfig.EnableUtilCommands)
+                _Commands.RegisterCommands<UtilCommands>();
+            if (BotConfig.EnableModeration)
+            {
+                _Commands.RegisterCommands<ModerationCmds>();
+                _Commands.RegisterCommands<AnnouncerCmd>();
+            }
+            if (BotConfig.EnableFunCommands)
+            {
+                _Commands.RegisterCommands<EightBallCmd>();
+                _Commands.RegisterCommands<RPSCmd>();
+            }
+            
             //_Commands.RegisterCommands<UtilCmds>();
             _Commands.SetHelpFormatter<HelpFormatter>();
 
+            _Client.UseInteractivity(new InteractivityConfiguration()
+            {
+                PaginationBehaviour = PaginationBehaviour.Ignore,
+                Timeout = TimeSpan.FromSeconds(30),
+                PollBehaviour = PollBehaviour.KeepEmojis,                
+            });
 
             //client connection to bot application on the discord api
-            await _Client.ConnectAsync();
-            //assigning global data values
+            _Client.ConnectAsync();
+
+            // Change the playing thing on bot's discord
+            DiscordActivity playActivity = new DiscordActivity()
+            {
+                ActivityType = ActivityType.Playing,
+                Name = "play.aquacraft.ca"
+            };
+            _Client.UpdateStatusAsync(playActivity);
+            Timer statusTimer = new Timer(20000);
+            statusTimer.Elapsed += StatusTimer_Elapsed;
+            statusTimer.Start();
+
+            //assigning global data values            
             GlobalData.startTime = DateTime.Now;
             GlobalData.prefixes = _prefixes;
-            GlobalData.botName = _BotName;
-
-            await Task.Delay(-1);
+            GlobalData.botName = _BotName;            
         }
+
+        private void StatusTimer_Elapsed(object sender, ElapsedEventArgs e)
+        {            
+            List<DiscordActivity> activites = new List<DiscordActivity>();            
+            DiscordActivity listeningActivity = new DiscordActivity()
+            {
+                ActivityType = ActivityType.ListeningTo,
+                Name = "walroos mating sounds"
+            };
+            activites.Add(listeningActivity);
+            DiscordActivity watchingActivity = new DiscordActivity()
+            {
+                ActivityType = ActivityType.Watching,
+                Name = $"users for {(DateTime.Now - GlobalData.startTime).TotalMinutes} minutes"
+            };
+            activites.Add(watchingActivity);
+            DiscordActivity fireActivity = new DiscordActivity()
+            {
+                ActivityType = ActivityType.Watching,
+                Name = "for w!firestarters"
+            };
+            activites.Add(fireActivity);
+            DiscordActivity playActivity = new DiscordActivity()
+            {
+                ActivityType = ActivityType.Playing,
+                Name = "play.aquacraft.ca"
+            };
+            activites.Add(playActivity);
+            _Client.UpdateStatusAsync(activites[_count % 4]);
+            _count++;
+        }
+
+        private Task _Client_MessageCreated(DiscordClient sender, MessageCreateEventArgs msg)
+        {
+            // Check for message to be in bump channel, and from DISBOARD bot, and has the phrase "Bump done"
+            if (msg.Channel.Name.Contains("bump"))
+            {
+                if (GlobalData.enableBumpReminder)
+                {
+                    if (msg.Author.Id == 302050872383242240)
+                    {
+                        sender.Logger.LogInformation("Bump found!");
+                        var embeds = msg.Message.Embeds;
+                        bool bumpDone = false;
+                        foreach (var embed in embeds)
+                        {
+                            if (embed.Description.Contains("Bump done"))
+                                bumpDone = true;
+                        }
+
+                        if (bumpDone)
+                        {
+                            BumpReminder.BumpThanks(msg.MentionedUsers[0], msg.Channel);
+                            var Reminder = new Timer(TimeSpan.FromHours(2).TotalMilliseconds);
+                            Reminder.Elapsed += (sender, e) => BumpReminder.RemindElapsed(sender, e, msg, Reminder);
+                            Reminder.AutoReset = false;
+                            Reminder.Start();
+                        }
+                    }
+                }
+            }
+            return Task.CompletedTask;
+        }
+
+        private async Task _Client_MessageReactionAdded(DiscordClient sender, MessageReactionAddEventArgs e)
+        {            
+            sender.Logger.LogInformation($"{e.User} has reacted with `{e.Emoji.GetDiscordName()}` in {e.Channel}[Guild: {e.Guild}]");
+
+            if (GlobalData.ticketMsgs.Contains(e.Message)) // if the user reacts in the message 
+            {
+                Console.WriteLine("Ticket message reacted!");
+                var msgIndex = GlobalData.ticketMsgs.IndexOf(e.Message);
+                var msg = GlobalData.ticketMsgs[msgIndex];
+                if (e.User == msg.MentionedUsers[0])
+                {
+                    var ticket = e.Channel;
+                    DiscordEmoji chosen = e.Emoji;                    
+                    await msg.DeleteAllReactionsAsync().ConfigureAwait(false);
+                    if (chosen == null)
+                    {
+                        await msg.ModifyAsync("Request timed out/Not chosen. Please follow the form below, staff will be with you soon.", embed: null).ConfigureAwait(false);
+                        await TicketterServices.GeneralSupportTicketAsync(ticket).ConfigureAwait(false);
+                        return;
+                    }
+                    else
+                        await msg.ModifyAsync("Thank you for complying. Please follow the form below and staff will be with you soon.", embed: null).ConfigureAwait(false);
+
+                    switch (chosen.GetDiscordName())
+                    {
+                        case ":exclamation:":
+                            await TicketterServices.PlayerReportTicketAsync(ticket).ConfigureAwait(false);
+                            break;
+                        case ":space_invader:":
+                            await TicketterServices.BugReportTicketAsync(ticket).ConfigureAwait(false);
+                            break;
+                        case ":scroll:":
+                            await TicketterServices.PunishmentAppealTicketAsync(ticket).ConfigureAwait(false);
+                            break;
+                        case ":tada:":
+                            await TicketterServices.GiveawayRedeem(ticket).ConfigureAwait(false);
+                            break;
+                        case ":mailbox_with_mail:":
+                            await TicketterServices.GeneralSupportTicketAsync(ticket).ConfigureAwait(false);
+                            break;
+                        default:
+                            await TicketterServices.GeneralSupportTicketAsync(ticket).ConfigureAwait(false);
+                            break;
+                    }
+                    GlobalData.ticketMsgs.Remove(msg); // Remove after it has been used.
+                }
+            }             
+        }
+
+        private async Task Client_ChannelCreated(DiscordClient sender, ChannelCreateEventArgs e)
+        {
+            //needs a lot of editing for more than one server but for now it's fine
+            if (e.Channel.Name.Contains("ticket")) // if the name of the channel created has "ticket" in the name
+            {
+                sender.Logger.LogInformation($"Ticket channel {e.Channel.Name} found!");
+                if (GlobalData.enableTicketter)
+                {
+                    sender.Logger.LogInformation("Ticketter is enabled! Starting ticketter.");
+                    await Task.Delay(2500);                    
+                    var ticket = e.Channel;
+                    var msg = await TicketterServices.SendTicketInitiationEmbed(sender, e.Guild, ticket);
+                    GlobalData.ticketMsgs.Add(msg);
+                }
+            }            
+        }
+
 
         //logging stuff onto the console line (for all of these might want to log into a text file if needed)
         private Task Client_OnReady(DiscordClient sender, ReadyEventArgs e)
@@ -122,6 +283,8 @@ namespace IamagesDiscordBot
         {
             sender.Logger.LogInformation(BotEventId, $"{_BotName} is now connected to \"{e.Guild.Name}\"({e.Guild.Id})");
             //read the prefixes json and then read (not needed right now, as only one main prefix at hand)
+            // Set up maybe 3 guild emotes to be used by the bot for now.
+            GlobalData.AquaEmotes = e.Guild.Emojis;
             return Task.CompletedTask;
         }
         private Task Client_ClientError(DiscordClient sender, ClientErrorEventArgs e)

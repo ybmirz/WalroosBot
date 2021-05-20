@@ -66,8 +66,13 @@ namespace AquacraftBot.Services.BotServices
                                     $"This command is only bound to NSFW Channels",
                                     ResponseType.Error).ConfigureAwait(false);
                                 break;
-                            case CooldownAttribute:
-                                await BotServices.SendEmbedAsync(e.Context, title, $"Calm down there mate! Please wait a few more seconds.", ResponseType.Warning)
+                            case CooldownAttribute cool:
+                                if (e.Command.Name == "firestarter")
+                                {
+                                    await BotServices.SendEmbedAsync(e.Context, "Fire has already been started", $"It seems someone already started a fire in the server, next fire can be started in `{cool.GetRemainingCooldown(e.Context).Hours} hours {cool.GetRemainingCooldown(e.Context).Minutes} minutes and {cool.GetRemainingCooldown(e.Context).Seconds} seconds`.", ResponseType.Warning)
+                                        .ConfigureAwait(false);
+                                } else
+                                    await BotServices.SendEmbedAsync(e.Context, title, $"Calm down there mate! Please wait a few more seconds.", ResponseType.Warning)
                                     .ConfigureAwait(false);
                                 break;
                             default:

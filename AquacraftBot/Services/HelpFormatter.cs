@@ -25,7 +25,7 @@ namespace AquacraftBot.Services
 
         public override CommandHelpMessage Build()
         {
-            _output.WithDescription(description);
+            _output.WithDescription(Formatter.Bold(description));
             return new CommandHelpMessage(embed: _output);
         }
 

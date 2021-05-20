@@ -23,7 +23,7 @@ namespace AquacraftBot.Services
         public bool EnableFunCommands { set; get; } = false; // by default will be false for all command modules
         [JsonProperty("EnableModCommands")]
         public bool EnableModCommands { set; get; } = false;
-        [JsonProperty("EnableUtilCommmands")]
+        [JsonProperty("EnableUtilCommands")]
         public bool EnableUtilCommands { set; get; } = false;
     }
 }
