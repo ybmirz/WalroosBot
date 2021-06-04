@@ -67,6 +67,11 @@ namespace AquacraftBot.Services.TickettingServices
             startingEmbed.AddField($"General Support Ticket", $"If your ticket is not within the above options, click on {general} below. This ticket will be a general support question, please do not abuse. We'll be with you shortly.");
             emojiList.Add(general);
 
+            // Temp: Build Entry Ticket
+            var build = DiscordEmoji.FromName(client, ":homes:");
+            startingEmbed.AddField("Build Entry Ticket", $"Temporary ticket option for those that would like to submit a build entry in the ongoing June Build Event. Please do not choose this option to simply `check` if it works. If you'd like to submit a build entry, click on {build} below.");
+            emojiList.Add(build);
+
             var initiateMsg = await ticket.SendMessageAsync(ticketRequester.Mention,startingEmbed.Build()).ConfigureAwait(false);
             
             await initiateMsg.CreateReactionAsync(playerReport).ConfigureAwait(false);
@@ -74,6 +79,8 @@ namespace AquacraftBot.Services.TickettingServices
             await initiateMsg.CreateReactionAsync(appeal).ConfigureAwait(false);
             await initiateMsg.CreateReactionAsync(prize).ConfigureAwait(false);
             await initiateMsg.CreateReactionAsync(general).ConfigureAwait(false);
+
+            await initiateMsg.CreateReactionAsync(build).ConfigureAwait(false);
 
 
             /* Interactive wait for reaction doesnt seem to work, so I'll just take the emoojis from the msg and check which one the requester made*/
@@ -108,12 +115,18 @@ namespace AquacraftBot.Services.TickettingServices
             var general = DiscordEmoji.FromName(ctx.Client, ":mailbox_with_mail:");
             startingEmbed.AddField($"General Support Ticket", $"If your ticket is not within the above options, click on {general} below. This ticket will be a general support question, please do not abuse. We'll be with you shortly.");
 
+            // Temp: Build Entry Ticket
+            var build = DiscordEmoji.FromName(ctx.Client, ":homes:");
+            startingEmbed.AddField("Build Entry Ticket", $"Temporary ticket option for those that would like to submit a build entry in the ongoing June Build Event. Please do not choose this option to simply `check` if it works. If you'd like to submit a build entry, click on {build} below.");            
+
             var initiateMsg = await ctx.Channel.SendMessageAsync(startingEmbed.Build()).ConfigureAwait(false);
             await initiateMsg.CreateReactionAsync(playerReport).ConfigureAwait(false);
             await initiateMsg.CreateReactionAsync(bugReport).ConfigureAwait(false);
             await initiateMsg.CreateReactionAsync(appeal).ConfigureAwait(false);
             await initiateMsg.CreateReactionAsync(prize).ConfigureAwait(false);
             await initiateMsg.CreateReactionAsync(general).ConfigureAwait(false);
+
+            await initiateMsg.CreateReactionAsync(build).ConfigureAwait(false);
         }
 
         private static DiscordEmbedBuilder TicketEmbed()
@@ -243,7 +256,29 @@ namespace AquacraftBot.Services.TickettingServices
             var docSnap = await docRef.GetSnapshotAsync();
             int count = docSnap.GetValue<int>("GeneralSupport");
             await ticket.ModifyAsync(prop => prop.Name = $"support-ticket-{count.ToString("D4")}").ConfigureAwait(false);
-        }        
+        }
+
+        public static async Task BuildEntry(DiscordChannel ticket)
+        {
+            string form = 
+                "<IGN(s): In-Game Name(s)>\n" +
+                "<Name_of_Build: Required>\n" +
+                "<Build Backstory: Optional>\n" +
+                "<Coordinates_of_Build: Required>\n" +
+                "<Screenshots_of_Build: Required>";
+            var embed = new DiscordEmbedBuilder()
+                .WithTimestamp(DateTime.Now)
+                .WithColor(GlobalData.defaultColour)
+                .WithTitle("Build Entry Format")
+                .WithDescription(Formatter.BlockCode(form, "xml"));
+
+            await ticket.SendMessageAsync(embed.Build()).ConfigureAwait(false);
+            var docRef = GlobalData.database.Collection("Counters").Document("TicketterCounts");
+            await docRef.UpdateAsync("BuildEntry", FieldValue.Increment(1));
+            var docSnap = await docRef.GetSnapshotAsync();
+            int count = docSnap.GetValue<int>("BuildEntry");
+            await ticket.ModifyAsync(prop => prop.Name = $"build-entry-{count.ToString("D4")}").ConfigureAwait(false);
+        }
 
         #endregion TicketOptions
     }

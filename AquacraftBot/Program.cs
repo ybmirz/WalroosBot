@@ -4,6 +4,7 @@ using AquacraftBot.Commands.SuggestionCmds;
 using AquacraftBot.Commands.UtilCommands;
 using AquacraftBot.Services;
 using AquacraftBot.Services.BotServices;
+using AquacraftBot.Services.SuggestionServices;
 using AquacraftBot.Services.TickettingServices;
 using DSharpPlus;
 using DSharpPlus.CommandsNext;
@@ -17,6 +18,8 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Text;
 using System.Threading.Tasks;
 using System.Timers;
 
@@ -82,6 +85,7 @@ namespace AquacraftBot
             _Client.ChannelCreated += Client_ChannelCreated;
             _Client.MessageReactionAdded += _Client_MessageReactionAdded;
             _Client.MessageCreated += _Client_MessageCreated;
+            _Client.ChannelDeleted += _Client_ChannelDeleted;
 
             //might wanna add a interactivity here along with its config
             var commandsConfig = new CommandsNextConfiguration
@@ -99,7 +103,18 @@ namespace AquacraftBot
             _Commands.CommandErrored += Command_CommandError;
 
             if (BotConfig.EnableSuggestions)
+            {
                 _Commands.RegisterCommands<SuggestionCmds>();
+                var json = string.Empty;
+                using (var fs = File.OpenRead("./Resources/SuggestionConfig.json"))
+                using (var sr = new StreamReader(fs, new UTF8Encoding(false)))
+                    json = sr.ReadToEnd();
+                SuggestionConfiguration suggestConfig = SuggestionConfiguration.GetConfig(json);
+                SuggestionService.SuggestionChannel = suggestConfig.SuggestionChannel;
+                SuggestionService.DecisionChannel = suggestConfig.DecisionChannel;
+                SuggestionService.VotingThreshold = suggestConfig.Threshold;
+                SuggestionService.DMonDecision = suggestConfig.DMonDecision;
+            }
             if (BotConfig.EnableUtilCommands)
                 _Commands.RegisterCommands<UtilCommands>();
             if (BotConfig.EnableModeration)
@@ -133,7 +148,7 @@ namespace AquacraftBot
                 Name = "play.aquacraft.ca"
             };
             _Client.UpdateStatusAsync(playActivity);
-            Timer statusTimer = new Timer(20000);
+            Timer statusTimer = new Timer(20000); // 20 seconds of interval between statuses
             statusTimer.Elapsed += StatusTimer_Elapsed;
             statusTimer.Start();
 
@@ -141,6 +156,17 @@ namespace AquacraftBot
             GlobalData.startTime = DateTime.Now;
             GlobalData.prefixes = _prefixes;
             GlobalData.botName = _BotName;            
+        }
+
+        private Task _Client_ChannelDeleted(DiscordClient sender, ChannelDeleteEventArgs e)
+        {
+            try {
+                var msg = GlobalData.ticketMsgs.Find(msg => msg.Channel.Id == e.Channel.Id);
+                GlobalData.ticketMsgs.Remove(msg);
+                sender.Logger.LogInformation($"Unreacted ticket message found in channel {e.Channel.Name} in {e.Guild.Name} ({e.Guild.Id})");
+            }
+            catch { sender.Logger.LogInformation($"Channel {e.Channel.Name} has been deleted in {e.Guild.Name} ({e.Guild.Id})"); }
+            return Task.CompletedTask;
         }
 
         private void StatusTimer_Elapsed(object sender, ElapsedEventArgs e)
@@ -177,28 +203,31 @@ namespace AquacraftBot
         private Task _Client_MessageCreated(DiscordClient sender, MessageCreateEventArgs msg)
         {
             // Check for message to be in bump channel, and from DISBOARD bot, and has the phrase "Bump done"
-            if (msg.Channel.Name.Contains("bump"))
+            if (msg.Channel is not DiscordDmChannel)
             {
-                if (GlobalData.enableBumpReminder)
+                if (msg.Channel.Name.Contains("bump"))
                 {
-                    if (msg.Author.Id == 302050872383242240)
+                    if (GlobalData.enableBumpReminder)
                     {
-                        sender.Logger.LogInformation("Bump found!");
-                        var embeds = msg.Message.Embeds;
-                        bool bumpDone = false;
-                        foreach (var embed in embeds)
+                        if (msg.Author.Id == 302050872383242240)
                         {
-                            if (embed.Description.Contains("Bump done"))
-                                bumpDone = true;
-                        }
+                            sender.Logger.LogInformation("Bump found!");
+                            var embeds = msg.Message.Embeds;
+                            bool bumpDone = false;
+                            foreach (var embed in embeds)
+                            {
+                                if (embed.Description.Contains("Bump done"))
+                                    bumpDone = true;
+                            }
 
-                        if (bumpDone)
-                        {
-                            BumpReminder.BumpThanks(msg.MentionedUsers[0], msg.Channel);
-                            var Reminder = new Timer(TimeSpan.FromHours(2).TotalMilliseconds);
-                            Reminder.Elapsed += (sender, e) => BumpReminder.RemindElapsed(sender, e, msg, Reminder);
-                            Reminder.AutoReset = false;
-                            Reminder.Start();
+                            if (bumpDone)
+                            {
+                                BumpReminder.BumpThanks(msg.MentionedUsers[0], msg.Channel);
+                                var Reminder = new Timer(TimeSpan.FromHours(2).TotalMilliseconds);
+                                Reminder.Elapsed += (sender, e) => BumpReminder.RemindElapsed(sender, e, msg, Reminder);
+                                Reminder.AutoReset = false;
+                                Reminder.Start();
+                            }
                         }
                     }
                 }
@@ -246,13 +275,16 @@ namespace AquacraftBot
                         case ":mailbox_with_mail:":
                             await TicketterServices.GeneralSupportTicketAsync(ticket).ConfigureAwait(false);
                             break;
+                        case ":homes:":
+                            await TicketterServices.BuildEntry(ticket).ConfigureAwait(false);
+                            break;
                         default:
                             await TicketterServices.GeneralSupportTicketAsync(ticket).ConfigureAwait(false);
                             break;
                     }
                     GlobalData.ticketMsgs.Remove(msg); // Remove after it has been used.
                 }
-            }             
+            }
         }
 
         private async Task Client_ChannelCreated(DiscordClient sender, ChannelCreateEventArgs e)

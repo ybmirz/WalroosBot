@@ -4,15 +4,18 @@ using DSharpPlus;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
+using DSharpPlus.Exceptions;
 using DSharpPlus.Interactivity.Extensions;
 using NodaTime;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using static AquacraftBot.Services.BotServices.BotServices;
+using Group = AquacraftBot.Services.Group;
 
 namespace AquacraftBot.Commands.UtilCommands
 {
@@ -47,6 +50,35 @@ namespace AquacraftBot.Commands.UtilCommands
             if (str != null)
             {
                 await ctx.TriggerTypingAsync();
+                if (str.Contains("<") || str.Contains(">"))
+                {
+                    Regex rgx = new Regex(@"<(?<id>\d+)>"); // Gets a match into a group named `id` between the two placeholder
+                    MatchCollection matches = rgx.Matches(str);
+                    /*Console.WriteLine("{0} matches found in:\n   {1}",
+                          matches.Count,
+                          str);*/
+                    foreach (Match match in matches)
+                    {                        
+                        ulong id = Convert.ToUInt64(match.Groups[1].Value);                        
+                        if (ctx.Guild.Members.ContainsKey(id))
+                        {
+                            var member = await ctx.Guild.GetMemberAsync(id);
+                            str = str.Replace($"<{id}>", member.Mention);
+                            continue;
+                        }
+                        if (ctx.Guild.Roles.ContainsKey(id))
+                        {
+                            var role = ctx.Guild.GetRole(id);
+                            str = str.Replace($"<{id}>", role.Mention);
+                            continue;
+                        }
+                        await ctx.Message.DeleteAsync();
+                        var msg = await ctx.RespondAsync("Sadly, the placeholder ID is not a user's or role's ID. Please check again.").ConfigureAwait(false);
+                        await Task.Delay(3000);
+                        await msg.DeleteAsync().ConfigureAwait(false);
+                        return;
+                    }
+                }
                 await ctx.Message.DeleteAsync();
                 await ctx.Channel.SendMessageAsync(str).ConfigureAwait(false);
             }
@@ -55,6 +87,7 @@ namespace AquacraftBot.Commands.UtilCommands
                 var botmsg = await ctx.Channel.SendMessageAsync("What should I have said? Sadly you didn't specify it.");
                 Thread.Sleep(2000);
                 await ctx.Channel.DeleteMessageAsync(botmsg);
+                await ctx.Message.DeleteAsync();
             }
         }
 
@@ -181,12 +214,13 @@ namespace AquacraftBot.Commands.UtilCommands
         [Command("firestarter"), Description("A once in 2 hours command to start up a dead chat by pinging the Firestarter role")]
         [GroupName(Group.Fun)]
         [Cooldown(1, 7200, CooldownBucketType.Guild)]
-        public async Task firestarter(CommandContext ctx)x
+        public async Task firestarter(CommandContext ctx)
         {
             // Firestart role id: 844879909544656928
             var role = ctx.Guild.GetRole(844879909544656928);
+            var mainChat = ctx.Guild.GetChannel(748028461599424537);
             await ctx.Message.DeleteAsync().ConfigureAwait(false);
-            await ctx.Channel.SendMessageAsync($"Wake up wake up people! {role.Mention} let's get this fire started!").ConfigureAwait(false);
+            await mainChat.SendMessageAsync($"Wake up wake up people! {role.Mention} let's get this fire started!").ConfigureAwait(false);
         }
     }
 }

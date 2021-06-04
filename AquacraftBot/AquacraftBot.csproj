@@ -34,7 +34,6 @@
 
   <ItemGroup>
     <Folder Include="Commands\FunCmds\" />
-    <Folder Include="Resources\" />
   </ItemGroup>
 
 </Project>

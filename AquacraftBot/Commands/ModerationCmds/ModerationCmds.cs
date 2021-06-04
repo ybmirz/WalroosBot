@@ -11,6 +11,7 @@ using System.Timers;
 using System.Threading;
 using System.Threading.Tasks;
 using static AquacraftBot.Services.BotServices.BotServices;
+using AquacraftBot.Services.TickettingServices;
 
 namespace AquacraftBot.Commands.ModerationCmds
 {
@@ -34,11 +35,21 @@ namespace AquacraftBot.Commands.ModerationCmds
         [Command("ticketter"), Description("Enables and disables the ticketter function of the bot")]        
         [RequireRoles(RoleCheckMode.Any,"Manager [HR]", "Administrator [HR]")]
         [GroupName(Group.Moderation)]
-        public async Task ticketTag(CommandContext ctx)
+        public async Task ticketter(CommandContext ctx)
         {
             GlobalData.enableTicketter = !GlobalData.enableTicketter;
             var msg = GlobalData.enableTicketter ? "`Enabled`" : "`Disabled`";
             await ctx.RespondAsync($"Ticketter has been {msg}!").ConfigureAwait(false);            
+        }
+
+        [Command("bumpreminder"), Description("Enables and disables the bump reminder function of the bot")]
+        [RequireRoles(RoleCheckMode.Any, "Manager [HR]", "Administrator [HR]")]
+        [GroupName(Group.Moderation)]
+        public async Task bumpReminder(CommandContext ctx)
+        {
+            GlobalData.enableBumpReminder = !GlobalData.enableBumpReminder;
+            var msg = GlobalData.enableBumpReminder ? "`Enabled`" : "`Disabled`";
+            await ctx.RespondAsync($"Bump reminder has been {msg}!").ConfigureAwait(false);
         }
 
         [Command("rename"), Description("Renames the channel the command is executed in")]
@@ -51,6 +62,7 @@ namespace AquacraftBot.Commands.ModerationCmds
         }
 
         [Command("closeticket"), Description("Sends a string of messages when wanting to close a ticket. Basically telling the user that they can close the ticket. Mod+")]
+        [Hidden]
         [RequireUserPermissions(Permissions.ManageRoles)] // Basically only Mod+
         [GroupName(Group.Moderation)]
         public async Task ticketClose(CommandContext ctx)
@@ -63,7 +75,17 @@ namespace AquacraftBot.Commands.ModerationCmds
                 $" continuing with the {tickEmote}.";
             await ctx.Message.DeleteAsync().ConfigureAwait(false);
             await ctx.Channel.SendMessageAsync(msg).ConfigureAwait(false);
-        }        
+        }
+
+        [Command("exampleticket"), Description("Sends an example ticket embed to the channel")]
+        [Hidden]
+        [RequireRoles(RoleCheckMode.Any, "Manager [HR]", "Administrator [HR]")]
+        [GroupName(Group.Moderation)]
+        public async Task exampleTicket(CommandContext ctx)
+        {
+            await TicketterServices.SendExampleEmbed(ctx).ConfigureAwait(false);
+            await ctx.Message.DeleteAsync().ConfigureAwait(false);
+        }
     }
 
     [Group("announcer"), Description("Announce a recurring message when the bot is alive when it is set, with a set interval.")]
@@ -75,13 +97,15 @@ namespace AquacraftBot.Commands.ModerationCmds
         [RequireUserPermissions(Permissions.ManageChannels)]
         public async Task set(CommandContext ctx, int intervalInMinutes, [RemainingText] string announcement)
         {
-            var ms = TimeSpan.FromMinutes(intervalInMinutes).TotalMilliseconds;
+            var ms = TimeSpan.FromMinutes(intervalInMinutes).TotalMilliseconds;            
             System.Timers.Timer announce = new System.Timers.Timer(ms);
             announce.Elapsed += (sender, e) => Announce_ElapsedAsync(sender, e, announcement, ctx.Channel);
             announce.Start();
+            await ctx.Message.DeleteAsync().ConfigureAwait(false);
+            await ctx.Channel.SendMessageAsync(announcement).ConfigureAwait(false);
             GlobalData.announcements.Add(announce);
             var msg = await ctx.RespondAsync($"Announcement set in channel! To remove, you can do `w!announcer remove {GlobalData.announcements.IndexOf(announce)}` <-- that number is the announcementIndex");
-            await Task.Delay(3000);
+            await Task.Delay(5000);
             await msg.DeleteAsync().ConfigureAwait(false);
         }
 

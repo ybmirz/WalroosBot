@@ -36,8 +36,9 @@ namespace AquacraftBot.Commands.SuggestionCmds
 
             //deletes the commands msg
             await ctx.Message.DeleteAsync().ConfigureAwait(false);
-            //send message to channel *(for now will be ctx.channel)
-            var sMsg = await ctx.Channel.SendMessageAsync(sEmbed.Build()).ConfigureAwait(false);
+            //send message to channel set in suggestion service as "suggestion channel"
+            var suggestionChannel = ctx.Guild.GetChannel(SuggestionService.SuggestionChannel);
+            var sMsg = await suggestionChannel.SendMessageAsync(sEmbed.Build()).ConfigureAwait(false);
 
             //create a suggestion model with the above informations
             SuggestionModel suggestion = new SuggestionModel()
@@ -58,8 +59,13 @@ namespace AquacraftBot.Commands.SuggestionCmds
             await sMsg.CreateReactionAsync(upvoteEmote).ConfigureAwait(false);
             await sMsg.CreateReactionAsync(downvoteEmote).ConfigureAwait(false);
 
-            //might wanna send an embed if suggestion is made if DM option is on
-            await BotServices.SendEmbedAsync(ctx, "Suggestion Added!", "Suggestion has been added in the document with sID: "+ sID, ResponseType.Default).ConfigureAwait(false);
+            // Sending the user a message saying suggestion has been made. If DMonDecision is on, if not it just logs to console.
+            Console.WriteLine($"Suggestion #{sID} has been added, from {ctx.Guild.Name}({ctx.Guild.Id}) by {ctx.User.Username}#{ctx.User.Discriminator}({ctx.User.Id})");
+            if (SuggestionService.DMonDecision)
+            {
+                await BotServices.SendDMEmbedAsync(ctx.Member, $"Suggestion #{sID} has been added!", $"Your suggestion has been posted in {suggestionChannel.Mention}, with sID: {sID}. Please wait for staff decision on your suggestion.").ConfigureAwait(false);
+            }
+            
         }
         #endregion SuggestionMaking
 
@@ -72,7 +78,7 @@ namespace AquacraftBot.Commands.SuggestionCmds
             //getting back data from firestore
             DocumentReference suggestionRef = GlobalData.database.Collection("Suggestions").Document(sID);
             DocumentSnapshot suggestionSnap = await suggestionRef.GetSnapshotAsync();
- 
+
             if (suggestionSnap.Exists) // basically means that the document/suggestion exists
             {
                 SuggestionModel suggestion = suggestionSnap.ConvertTo<SuggestionModel>();
@@ -86,16 +92,25 @@ namespace AquacraftBot.Commands.SuggestionCmds
 
                 //deletes the cmd msg
                 await ctx.Message.DeleteAsync().ConfigureAwait(false);
-                //sends the embed to the decision channel *(for now its ctx.channel)
-                await ctx.Channel.SendMessageAsync(embed.Build()).ConfigureAwait(false);
+                //sends the embed to the decision channel
+                var decisionChannel = ctx.Guild.GetChannel(SuggestionService.DecisionChannel);
+                DiscordMember member = null;
+                try {
+                    member = await ctx.Guild.GetMemberAsync(submitter.Id);
+                }
+                catch { }
+                var msg = await decisionChannel.SendMessageAsync(embed.Build()).ConfigureAwait(false);
+
+                if (SuggestionService.DMonDecision && member != null)
+                    await BotServices.SendDMEmbedAsync(member, $"Suggestion #{sID} has been approved!", $"Your suggestion with sID:`{sID}` has been approved in {decisionChannel.Mention}. Thank you for the suggestion! Response: {msg.JumpLink}.").ConfigureAwait(false);
 
                 //deletes the suggestion msg and the suggestion doc on firestore
                 await suggestionRef.DeleteAsync();
-                await suggestionMsg.DeleteAllReactionsAsync(); 
+                await suggestionMsg.DeleteAsync(); 
             }
             else
             {
-                await BotServices.SendEmbedAsync(ctx, "Suggestion Not Found", $"Suggestion with sID: {sID} was not found. If this suggestion does exist, please use `{GlobalData.prefixes[0]}contact dev` to report a bug.", ResponseType.Error).ConfigureAwait(false);
+                await BotServices.SendEmbedAsync(ctx, "Suggestion Not Found", $"Suggestion with sID: {sID} was not found. If this suggestion does exist, please use `{GlobalData.prefixes[0]}info` to contact the developer.", ResponseType.Error).ConfigureAwait(false);
             }
         }
 
@@ -121,16 +136,26 @@ namespace AquacraftBot.Commands.SuggestionCmds
 
                 //deletes the cmd msg
                 await ctx.Message.DeleteAsync().ConfigureAwait(false);
-                //sends the embed to the decision channel *(for now its ctx.channel)
-                await ctx.Channel.SendMessageAsync(embed.Build()).ConfigureAwait(false);
+                //sends the embed to the decision channel 
+                var decisionChannel = ctx.Guild.GetChannel(SuggestionService.DecisionChannel);
+                DiscordMember member = null;
+                try
+                {
+                    member = await ctx.Guild.GetMemberAsync(submitter.Id);
+                }
+                catch { }
+                var msg = await decisionChannel.SendMessageAsync(embed.Build()).ConfigureAwait(false);
+
+                if (SuggestionService.DMonDecision && member != null)
+                    await BotServices.SendDMEmbedAsync(member, $"Suggestion #{sID} has been approved!", $"Your suggestion with sID:`{sID}` has been denied in {decisionChannel.Mention}. Thank you for the suggestion! Response: {msg.JumpLink}.").ConfigureAwait(false);
 
                 //deletes the suggestion msg and the suggestion doc on firestore
                 await suggestionRef.DeleteAsync();
-                await suggestionMsg.DeleteAllReactionsAsync(); // add in config maybe just want to do delete reactions
+                await suggestionMsg.DeleteAsync();
             }
             else
             {
-                await BotServices.SendEmbedAsync(ctx, "Suggestion Not Found", $"Suggestion with sID: {sID} was not found. If this suggestion does exist, please use `{GlobalData.prefixes[0]}contact dev` to report a bug.", ResponseType.Error).ConfigureAwait(false);
+                await BotServices.SendEmbedAsync(ctx, "Suggestion Not Found", $"Suggestion with sID: {sID} was not found. If this suggestion does exist, please use `{GlobalData.prefixes[0]}info` to contact the developer", ResponseType.Error).ConfigureAwait(false);
             }
         }
 
@@ -157,15 +182,25 @@ namespace AquacraftBot.Commands.SuggestionCmds
                 //deletes the cmd msg
                 await ctx.Message.DeleteAsync().ConfigureAwait(false);
                 //sends the embed to the decision channel *(for now its ctx.channel)
-                await ctx.Channel.SendMessageAsync(embed.Build()).ConfigureAwait(false);
+                var decisionChannel = ctx.Guild.GetChannel(SuggestionService.DecisionChannel);
+                DiscordMember member = null;
+                try
+                {
+                    member = await ctx.Guild.GetMemberAsync(submitter.Id);
+                }
+                catch { }
+                var msg = await decisionChannel.SendMessageAsync(embed.Build()).ConfigureAwait(false);
+
+                if (SuggestionService.DMonDecision && member != null)
+                    await BotServices.SendDMEmbedAsync(member, $"Suggestion #{sID} has been approved!", $"Your suggestion with sID:`{sID}` has been implemented in {decisionChannel.Mention}. Thank you for the suggestion! Response: {msg.JumpLink}.").ConfigureAwait(false);
 
                 //deletes the suggestion msg and the suggestion doc on firestore
                 await suggestionRef.DeleteAsync();
-                await suggestionMsg.DeleteAllReactionsAsync(); // add in config maybe just want to do delete reactions
+                await suggestionMsg.DeleteAsync();
             }
             else
             {
-                await BotServices.SendEmbedAsync(ctx, "Suggestion Not Found", $"Suggestion with sID: {sID} was not found. If this suggestion does exist, please use `{GlobalData.prefixes[0]}contact dev` to report a bug.", ResponseType.Error).ConfigureAwait(false);
+                await BotServices.SendEmbedAsync(ctx, "Suggestion Not Found", $"Suggestion with sID: {sID} was not found. If this suggestion does exist, please use `{GlobalData.prefixes[0]}info` to contact the developer.", ResponseType.Error).ConfigureAwait(false);
             }
         }
 
@@ -190,16 +225,26 @@ namespace AquacraftBot.Commands.SuggestionCmds
 
                 //deletes the cmd msg
                 await ctx.Message.DeleteAsync().ConfigureAwait(false);
-                //sends the embed to the decision channel *(for now its ctx.channel)
-                await ctx.Channel.SendMessageAsync(embed.Build()).ConfigureAwait(false);
+                //sends the embed to the decision channel
+                var decisionChannel = ctx.Guild.GetChannel(SuggestionService.DecisionChannel);
+                DiscordMember member = null;
+                try
+                {
+                    member = await ctx.Guild.GetMemberAsync(submitter.Id);
+                }
+                catch { }
+                var msg = await decisionChannel.SendMessageAsync(embed.Build()).ConfigureAwait(false);
+
+                if (SuggestionService.DMonDecision && member != null)
+                    await BotServices.SendDMEmbedAsync(member, $"Suggestion #{sID} has been approved!", $"Your suggestion with sID:`{sID}` is in consideration in {decisionChannel.Mention}. Thank you for the suggestion! Response: {msg.JumpLink}.").ConfigureAwait(false);
 
                 //deletes the suggestion msg and the suggestion doc on firestore
                 await suggestionRef.DeleteAsync();
-                await suggestionMsg.DeleteAllReactionsAsync(); // add in config maybe just want to do delete reactions
+                await suggestionMsg.DeleteAsync();
             }
             else
             {
-                await BotServices.SendEmbedAsync(ctx, "Suggestion Not Found", $"Suggestion with sID: {sID} was not found. If this suggestion does exist, please use `{GlobalData.prefixes[0]}contact dev` to report a bug.", ResponseType.Error).ConfigureAwait(false);
+                await BotServices.SendEmbedAsync(ctx, "Suggestion Not Found", $"Suggestion with sID: {sID} was not found. If this suggestion does exist, please use `{GlobalData.prefixes[0]}info` to contact the developer", ResponseType.Error).ConfigureAwait(false);
             }
         }
 
@@ -234,6 +279,27 @@ namespace AquacraftBot.Commands.SuggestionCmds
             return decisionEmbed;
         }
         #endregion SuggestionDecision
+ 
+        #region SuggestionInfo
+        [Command("suggestions"), Description("Returns the suggestion configuration of the current bot.")]
+        public async Task SuggestInfo(CommandContext ctx)
+        {
+            var suggestionChannel = ctx.Guild.GetChannel(SuggestionService.SuggestionChannel);
+            var decisionChannel = ctx.Guild.GetChannel(SuggestionService.DecisionChannel);
+
+            string desc = "Suggestion channel: " + suggestionChannel.Mention +"\n" +
+                "Decision channel: " + decisionChannel.Mention + "\n" +
+                "Voting Threshold (Difference between upvotes and downvotes for the suggestion color to be sent to owner. NOT IMPLEMENTED): " + SuggestionService.VotingThreshold + "\n" +
+                "Submitter DM Notification (Notify suggestion submitter on decision of suggestion): " + SuggestionService.DMonDecision;
+
+            var embed = new DiscordEmbedBuilder()
+                .WithColor(GlobalData.defaultColour)
+                .WithTitle("Suggestion Configuration")
+                .WithDescription(desc);
+              
+            await ctx.RespondAsync(embed.Build()).ConfigureAwait(false);    
+        }
+        #endregion SuggestionInfo
     }
 
     public enum DecisionType

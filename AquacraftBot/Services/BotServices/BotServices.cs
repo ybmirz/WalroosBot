@@ -57,6 +57,27 @@ namespace AquacraftBot.Services.BotServices
             await msg.DeleteAsync().ConfigureAwait(false);
         }
 
+        public static async Task SendDMEmbedAsync([Description("Member to be sent the embed to")]DiscordMember member, [Description("Title of Embed to be sent")] string title, [Description("Message to be sent in the embed")] string desc, [Description("ResponseType of the embed")] ResponseType type = ResponseType.Default)
+        {
+            var ErrorColour = type switch
+            {
+                ResponseType.Default => GlobalData.defaultColour,
+                ResponseType.Warning => new DiscordColor("#ffcc00"), //orange-ish warning colour
+                ResponseType.Error => new DiscordColor("#cc3300"), //red error colour
+                ResponseType.Missing => new DiscordColor("#999999"), //gray missing colour
+                _ => GlobalData.defaultColour
+            };
+            var embed = new DiscordEmbedBuilder()
+               .WithTitle(title)
+               .WithDescription(desc)
+               .WithFooter($"Connected Guild: {member.Guild.Name}({member.Guild.Id})", GlobalData.logoURL)
+               .WithTimestamp(DateTime.Now)
+               .WithColor(ErrorColour);
+
+            await member.SendMessageAsync(embed).ConfigureAwait(false);
+        }
+
+
         //creating command group module for Help Embed
         public class CmdGroup
         {
