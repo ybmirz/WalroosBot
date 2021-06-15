@@ -18,11 +18,21 @@ namespace AquacraftBot.Services
         public static string logoURL = "https://cdn.discordapp.com/embed/avatars/0.png";
         public static string botName;
         public static FirestoreDb database;
+
+        #region ServerRelatedGlobals
         public static bool enableTicketter = false;
         public static IReadOnlyDictionary<ulong, DiscordEmoji> AquaEmotes = new Dictionary<ulong, DiscordEmoji>();
-        public static bool enableBumpReminder = false;
+        public static bool enableBumpReminder = false;      
         public static List<DiscordMessage> ticketMsgs = new List<DiscordMessage>();
         public static List<Timer> announcements = new List<Timer>();
+        public static List<string> faqs = new List<string>();
+        #endregion ServerRelatedGlobals
+
+        #region GiveawayGlobals
+        public static Dictionary<string, Timer> GiveawayTimers = new Dictionary<string, Timer>();
+        public static Timer EmbedUpdateGTimer = new Timer();
+        public static Tuple<bool, DiscordClient> GiveawayClientUpdater = new Tuple<bool, DiscordClient>(false, null);
+        #endregion GiveawayGlobals
     }
 
     public enum ResponseType
@@ -38,7 +48,8 @@ namespace AquacraftBot.Services
         Fun,
         Moderation,
         Utilities,
-        Suggestion
+        Suggestion,
+        Giveaway
     }
 
 }

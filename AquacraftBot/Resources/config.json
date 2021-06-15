@@ -1,11 +1,12 @@
 {
   "BotName": "WalroosBot",
-  "Token": "Nzg1ODI0OTE5NTg1MDMwMTY1.X89efA.kJeGMSCJRrtBGk7_4tng0c6spyQ",
+  "Token": "ODAzNjc2NDk1OTE3NzQ0MTM5.YBBQEA.KQp2srZZOqvySm2YZLpGSCJsduk",
   "LogoURL": "https://i.imgur.com/izAeJm2.jpg",
   "Prefixes": [ "w!", "i!" ],
   "EnableModeration": true,
   "EnableSuggestions": true,
   "EnableFunCommands": true,
   "EnableModCommands": true,
-  "EnableUtilCommands": true
+  "EnableUtilCommands": true,
+  "EnableGiveaway": true
 }

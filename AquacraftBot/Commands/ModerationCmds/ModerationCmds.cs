@@ -33,7 +33,7 @@ namespace AquacraftBot.Commands.ModerationCmds
         }
 
         [Command("ticketter"), Description("Enables and disables the ticketter function of the bot")]        
-        [RequireRoles(RoleCheckMode.Any,"Manager [HR]", "Administrator [HR]")]
+        [RequireRoles(RoleCheckMode.Any,"Manager", "Administrator")]
         [GroupName(Group.Moderation)]
         public async Task ticketter(CommandContext ctx)
         {
@@ -43,7 +43,7 @@ namespace AquacraftBot.Commands.ModerationCmds
         }
 
         [Command("bumpreminder"), Description("Enables and disables the bump reminder function of the bot")]
-        [RequireRoles(RoleCheckMode.Any, "Manager [HR]", "Administrator [HR]")]
+        [RequireRoles(RoleCheckMode.Any, "Manager", "Administrator")]
         [GroupName(Group.Moderation)]
         public async Task bumpReminder(CommandContext ctx)
         {
@@ -72,20 +72,21 @@ namespace AquacraftBot.Commands.ModerationCmds
             var tickEmote = DiscordEmoji.FromName(ctx.Client, ":white_check_mark:");
 
             string msg = $"Thank you for creating a ticket. If there is no more questions/enquiries, you can go ahead close the ticket by reacting to the first message in the channel [{lockEmote}]," +
-                $" continuing with the {tickEmote}.";
+                $" continuing with the {tickEmote}. or by typing `$close`.";
             await ctx.Message.DeleteAsync().ConfigureAwait(false);
             await ctx.Channel.SendMessageAsync(msg).ConfigureAwait(false);
         }
 
         [Command("exampleticket"), Description("Sends an example ticket embed to the channel")]
         [Hidden]
-        [RequireRoles(RoleCheckMode.Any, "Manager [HR]", "Administrator [HR]")]
+        [RequireRoles(RoleCheckMode.Any, "Manager", "Administrator")]
         [GroupName(Group.Moderation)]
         public async Task exampleTicket(CommandContext ctx)
         {
             await TicketterServices.SendExampleEmbed(ctx).ConfigureAwait(false);
             await ctx.Message.DeleteAsync().ConfigureAwait(false);
         }
+
     }
 
     [Group("announcer"), Description("Announce a recurring message when the bot is alive when it is set, with a set interval.")]

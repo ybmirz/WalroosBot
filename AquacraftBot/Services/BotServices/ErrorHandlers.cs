@@ -5,7 +5,6 @@ using DSharpPlus.CommandsNext.Exceptions;
 using DSharpPlus.Exceptions;
 using Microsoft.Extensions.Logging;
 using System;
-using System.IO;
 using System.Threading.Tasks;
 
 namespace AquacraftBot.Services.BotServices

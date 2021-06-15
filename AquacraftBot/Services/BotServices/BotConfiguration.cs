@@ -25,5 +25,7 @@ namespace AquacraftBot.Services
         public bool EnableModCommands { set; get; } = false;
         [JsonProperty("EnableUtilCommands")]
         public bool EnableUtilCommands { set; get; } = false;
+        [JsonProperty("EnableGiveaway")]
+        public bool EnableGiveaway { set; get; } = false;
     }
 }

@@ -32,7 +32,9 @@ namespace AquacraftBot.Commands.FunCmds
             }
 
             Random rnd = new Random();
-            int n = rnd.Next(0, 2);
+            int n = rnd.Next(0, 12);
+            if (n > 2)
+            { n %= 3; }
             //the resulting win
             string[] resultStr = new string[3] { $"**{ctx.User.Username}** has won"/* 0 */, "It's a **tie**" /* 1 */ , "Haha loser, I won" /* 2 */};
             //emded for the winning result

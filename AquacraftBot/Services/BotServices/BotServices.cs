@@ -1,9 +1,9 @@
 ﻿using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
+using DSharpPlus.Exceptions;
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace AquacraftBot.Services.BotServices
@@ -57,7 +57,7 @@ namespace AquacraftBot.Services.BotServices
             await msg.DeleteAsync().ConfigureAwait(false);
         }
 
-        public static async Task SendDMEmbedAsync([Description("Member to be sent the embed to")]DiscordMember member, [Description("Title of Embed to be sent")] string title, [Description("Message to be sent in the embed")] string desc, [Description("ResponseType of the embed")] ResponseType type = ResponseType.Default)
+        public static async Task SendDMEmbedAsync([Description("Member to be sent the embed to")]DiscordMember member, [Description("Title of Embed to be sent")] string title, [Description("Message to be sent in the embed")] string desc,[Description("Channel to send message in the case of unable to send dm")] DiscordChannel backup = null, [Description("ResponseType of the embed")] ResponseType type = ResponseType.Default)
         {
             var ErrorColour = type switch
             {
@@ -74,7 +74,20 @@ namespace AquacraftBot.Services.BotServices
                .WithTimestamp(DateTime.Now)
                .WithColor(ErrorColour);
 
-            await member.SendMessageAsync(embed).ConfigureAwait(false);
+            try
+            { await member.SendMessageAsync(embed).ConfigureAwait(false); }
+            catch (UnauthorizedException e) {
+                if (backup != null)
+                {
+                    var msg = await backup.SendMessageAsync($"Oopsie, it seems that I am unable to send a DM to the user! It seems they have **disabled** DMs from server members. Please note the following message: `{desc}`.").ConfigureAwait(false);
+                    await Task.Delay(10000); // 10 Seconds to wait for the message to dissappear
+                    await msg.DeleteAsync().ConfigureAwait(false);
+                }
+                else
+                {
+                    Console.WriteLine("It seems that I was unable to send a suggestion submitter a DM message. The backup channel was as well unspecified. Moving on.");
+                }
+            }            
         }
 
 
@@ -105,14 +118,16 @@ namespace AquacraftBot.Services.BotServices
                     Group.Utilities => "Utilities",
                     Group.Moderation => "Moderation",
                     Group.Fun => "Fun",
-                    Group.Suggestion => "Suggestion"
+                    Group.Suggestion => "Suggestion",
+                    Group.Giveaway => "Giveaway"
                 };
                 this.emoji = group switch
                 {
                     Group.Utilities => ":tools:",
                     Group.Moderation => ":wrench:",
                     Group.Fun => ":game_die:",
-                    Group.Suggestion => ":memo:"
+                    Group.Suggestion => ":memo:",
+                    Group.Giveaway => ":confetti_ball:"
                 };
             }
         }

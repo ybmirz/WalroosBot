@@ -1,16 +1,11 @@
 ﻿using AquacraftBot.Services;
-using AquacraftBot.Services.BotServices;
 using DSharpPlus;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
-using DSharpPlus.Exceptions;
-using DSharpPlus.Interactivity.Extensions;
 using NodaTime;
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -81,6 +76,51 @@ namespace AquacraftBot.Commands.UtilCommands
                 }
                 await ctx.Message.DeleteAsync();
                 await ctx.Channel.SendMessageAsync(str).ConfigureAwait(false);
+            }
+            else
+            {
+                var botmsg = await ctx.Channel.SendMessageAsync("What should I have said? Sadly you didn't specify it.");
+                Thread.Sleep(2000);
+                await ctx.Channel.DeleteMessageAsync(botmsg);
+                await ctx.Message.DeleteAsync();
+            }
+        }
+
+        [Command("edit"), Description("Edits the bot's say message that has been sent using `w!say`. Needs to make sure that this command is called in the channel that you'd like to edit the message.")]
+        [GroupName(Group.Utilities)]
+        public async Task editSay(CommandContext ctx, ulong MessageID, [RemainingText][Description("Message to be edited into the message")] string str)
+        {
+            var messageToBeEdited = await ctx.Channel.GetMessageAsync(MessageID);
+            if (str != null)
+            {                
+                if (str.Contains("<") || str.Contains(">"))
+                {
+                    Regex rgx = new Regex(@"<(?<id>\d+)>"); // Gets a match into a group named `id` between the two placeholder
+                    MatchCollection matches = rgx.Matches(str);                    
+                    foreach (Match match in matches)
+                    {
+                        ulong id = Convert.ToUInt64(match.Groups[1].Value);
+                        if (ctx.Guild.Members.ContainsKey(id))
+                        {
+                            var member = await ctx.Guild.GetMemberAsync(id);
+                            str = str.Replace($"<{id}>", member.Mention);
+                            continue;
+                        }
+                        if (ctx.Guild.Roles.ContainsKey(id))
+                        {
+                            var role = ctx.Guild.GetRole(id);
+                            str = str.Replace($"<{id}>", role.Mention);
+                            continue;
+                        }
+                        await ctx.Message.DeleteAsync();
+                        var msg = await ctx.RespondAsync("Sadly, the placeholder ID is not a user's or role's ID. Please check again.").ConfigureAwait(false);
+                        await Task.Delay(3000);
+                        await msg.DeleteAsync().ConfigureAwait(false);
+                        return;
+                    }
+                }
+                await ctx.Message.DeleteAsync();
+                await messageToBeEdited.ModifyAsync(str).ConfigureAwait(false);
             }
             else
             {
@@ -221,6 +261,27 @@ namespace AquacraftBot.Commands.UtilCommands
             var mainChat = ctx.Guild.GetChannel(748028461599424537);
             await ctx.Message.DeleteAsync().ConfigureAwait(false);
             await mainChat.SendMessageAsync($"Wake up wake up people! {role.Mention} let's get this fire started!").ConfigureAwait(false);
+        }
+
+
+        [Command("ip"), Description("Returns back the IP of our minecraft server")]
+        [GroupName(Group.Utilities)]
+        public async Task ip(CommandContext ctx)
+        {
+            await ctx.Channel.SendMessageAsync("Our server ip is `play.aquacraft.ca`. Come join us!").ConfigureAwait(false);
+        }
+
+        [Command("links"), Description("Returns back Aquacraft links!")]
+        [GroupName(Group.Utilities)]
+        public async Task link(CommandContext ctx)
+        {
+            string desc = "Website: https://aquacraft.ca/ \nStore: https://store.aquacraft.ca/ \nIP: `play.aquacraft.ca`\n\nBe sure to read up for more information below:\nRules: https://aquacraft.ca/server-rules/ \nFAQs: https://aquacraft.ca/frequently-asked-questions-faqs/";
+            var embed = new DiscordEmbedBuilder()
+                .WithColor(DiscordColor.Black)
+                .WithTitle("Our Links!")
+                .WithDescription(desc);
+
+            await ctx.Channel.SendMessageAsync(embed.Build()).ConfigureAwait(false);
         }
     }
 }

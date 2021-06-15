@@ -1,4 +1,5 @@
 ﻿using AquacraftBot.Commands.FunCmds;
+using AquacraftBot.Commands.GiveawayCmds;
 using AquacraftBot.Commands.ModerationCmds;
 using AquacraftBot.Commands.SuggestionCmds;
 using AquacraftBot.Commands.UtilCommands;
@@ -19,6 +20,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Timers;
@@ -86,6 +88,7 @@ namespace AquacraftBot
             _Client.MessageReactionAdded += _Client_MessageReactionAdded;
             _Client.MessageCreated += _Client_MessageCreated;
             _Client.ChannelDeleted += _Client_ChannelDeleted;
+            _Client.MessageAcknowledged += _Client_MessageAcknowledged;
 
             //might wanna add a interactivity here along with its config
             var commandsConfig = new CommandsNextConfiguration
@@ -127,6 +130,10 @@ namespace AquacraftBot
                 _Commands.RegisterCommands<EightBallCmd>();
                 _Commands.RegisterCommands<RPSCmd>();
             }
+            if (BotConfig.EnableGiveaway)
+            {
+                _Commands.RegisterCommands<GiveawayCmd>();   
+            }
             
             //_Commands.RegisterCommands<UtilCmds>();
             _Commands.SetHelpFormatter<HelpFormatter>();
@@ -152,10 +159,57 @@ namespace AquacraftBot
             statusTimer.Elapsed += StatusTimer_Elapsed;
             statusTimer.Start();
 
-            //assigning global data values            
+            // assigning global data values            
             GlobalData.startTime = DateTime.Now;
             GlobalData.prefixes = _prefixes;
             GlobalData.botName = _BotName;            
+            // Adds in faq questions
+            GlobalData.faqs.Add("ip");            
+        }
+
+        private Task _Client_MessageAcknowledged(DiscordClient sender, MessageAcknowledgeEventArgs msg)
+        {
+            if (msg.Channel is not DiscordDmChannel)
+            {                
+                if (GlobalData.faqs.Any(msg.Message.Content.Contains))
+                {
+                    var content = msg.Message.Content;                    
+                    if ((content.Contains("what") || content.Contains("where")) && content.Contains("ip")) // Just add some more when adding more into the list 
+                    {
+                        // IP Question
+                        msg.Channel.SendMessageAsync("Our ip is `play.aquacraft.ca`. Come join us!").ConfigureAwait(false);                        
+                    }
+                    // Add more below
+                }
+
+                if (msg.Channel.Name.Contains("bump")) // bump reminder things
+                {
+                    if (GlobalData.enableBumpReminder)
+                    {
+                        if (msg.Message.Author.Id == 302050872383242240)
+                        {
+                            sender.Logger.LogInformation("Bump found!");
+                            var embeds = msg.Message.Embeds;
+                            bool bumpDone = false;
+                            foreach (var embed in embeds)
+                            {
+                                if (embed.Description.Contains("Bump done"))
+                                    bumpDone = true;
+                            }
+
+                            if (bumpDone)
+                            {
+                                BumpReminder.BumpThanks(msg.Message.MentionedUsers[0], msg.Channel);
+                                var Reminder = new Timer(TimeSpan.FromHours(2).TotalMilliseconds);
+                                Reminder.Elapsed += (sender, e) => BumpReminder.RemindElapsed(sender, e, msg, Reminder);
+                                Reminder.AutoReset = false;
+                                Reminder.Start();
+                            }
+                        }
+                    }
+                }
+            }
+            return Task.CompletedTask;
         }
 
         private Task _Client_ChannelDeleted(DiscordClient sender, ChannelDeleteEventArgs e)
@@ -202,37 +256,19 @@ namespace AquacraftBot
 
         private Task _Client_MessageCreated(DiscordClient sender, MessageCreateEventArgs msg)
         {
-            // Check for message to be in bump channel, and from DISBOARD bot, and has the phrase "Bump done"
             if (msg.Channel is not DiscordDmChannel)
             {
-                if (msg.Channel.Name.Contains("bump"))
-                {
-                    if (GlobalData.enableBumpReminder)
+                if (GlobalData.faqs.Any(msg.Message.Content.Contains))
+                {                     
+                    var content = msg.Message.Content;
+                    if ((content.Contains("what") || content.Contains("where")) && (content.Contains("ip") || content.Contains(" ip")) || content.Contains("?")) // Just add some more when adding more into the list 
                     {
-                        if (msg.Author.Id == 302050872383242240)
-                        {
-                            sender.Logger.LogInformation("Bump found!");
-                            var embeds = msg.Message.Embeds;
-                            bool bumpDone = false;
-                            foreach (var embed in embeds)
-                            {
-                                if (embed.Description.Contains("Bump done"))
-                                    bumpDone = true;
-                            }
-
-                            if (bumpDone)
-                            {
-                                BumpReminder.BumpThanks(msg.MentionedUsers[0], msg.Channel);
-                                var Reminder = new Timer(TimeSpan.FromHours(2).TotalMilliseconds);
-                                Reminder.Elapsed += (sender, e) => BumpReminder.RemindElapsed(sender, e, msg, Reminder);
-                                Reminder.AutoReset = false;
-                                Reminder.Start();
-                            }
-                        }
+                        // IP Question
+                        msg.Channel.SendMessageAsync("Our ip is `play.aquacraft.ca`. Come join us!").ConfigureAwait(false);
                     }
                 }
             }
-            return Task.CompletedTask;
+                return Task.CompletedTask;
         }
 
         private async Task _Client_MessageReactionAdded(DiscordClient sender, MessageReactionAddEventArgs e)
@@ -335,7 +371,7 @@ namespace AquacraftBot
             //default logging to console below:
             if (e.Command != null)
             {
-                sender.Client.Logger.LogWarning(BotEventId, $"{e.Command.Name ?? "NULL"} Command Error: {e.Exception.GetType()}: {e.Exception.Message ?? "<no message>"} by [{e.Context.User}] in [{e.Context.Channel.Name} ({e.Context.Channel.Id})] "); //changes from time to time
+                sender.Client.Logger.LogWarning(BotEventId, $"{e.Command.Name ?? "NULL"} Command Error: {e.Exception.GetType()}: {e.Exception.Message ?? "<no message>"} by [{e.Context.User}] in [{e.Context.Channel.Name} ({e.Context.Channel.Id})]\nStackTrace:{e.Exception.StackTrace} "); //changes from time to time
             }
             else {
                 sender.Client.Logger.LogWarning(BotEventId, $"{e.Context.User} tried to look for {e.Context.Message.Content} in [{e.Context.Channel.Name} ({e.Context.Channel.Id})]");

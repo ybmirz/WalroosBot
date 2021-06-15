@@ -18,10 +18,10 @@ namespace AquacraftBot.Services
 {
     public class BumpReminder
     {
-        public static async void RemindElapsed(object sender, ElapsedEventArgs e, MessageCreateEventArgs msg, Timer reminder)
+        public static async void RemindElapsed(object sender, ElapsedEventArgs e, MessageAcknowledgeEventArgs msg, Timer reminder)
         {
             var channel = msg.Channel;
-            DiscordRole bumpRole = msg.Guild.GetRole(842305189791924224);
+            DiscordRole bumpRole = msg.Channel.Guild.GetRole(842305189791924224);
             var rnd = new Random();
             var index = rnd.Next(0, GlobalData.AquaEmotes.Count);
             string message = $"Heya {bumpRole.Mention}, it's time to bump for our server. Bump our server by typing `!d bump`! {GlobalData.AquaEmotes.ElementAt(index).Value}";

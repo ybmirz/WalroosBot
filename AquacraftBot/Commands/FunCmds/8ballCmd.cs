@@ -38,7 +38,13 @@ namespace AquacraftBot.Commands.FunCmds
                 .WithTimestamp(DateTime.UtcNow)
                 .WithFooter($"Requested by {ctx.User.Username}");
 
-            var answer = replies[new Random().Next(replies.Count - 1)];
+            int n = new Random().Next(0 ,replies.Count * 3);
+            if (n > replies.Count-1)
+            {
+                n %= replies.Count;
+            }
+
+            var answer = replies[n];
             sb.AppendLine($"Question: **{question}**?");
             sb.AppendLine($"Your answer is: **{answer}**.");
             embed.Description = sb.ToString();
