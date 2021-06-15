@@ -62,8 +62,8 @@ namespace AquacraftBot.Commands.SuggestionCmds
             // Sending the user a message saying suggestion has been made. If DMonDecision is on, if not it just logs to console.
             Console.WriteLine($"Suggestion #{sID} has been added, from {ctx.Guild.Name}({ctx.Guild.Id}) by {ctx.User.Username}#{ctx.User.Discriminator}({ctx.User.Id})");
             if (SuggestionService.DMonDecision)
-            {
-                await BotServices.SendDMEmbedAsync(ctx.Member, $"Suggestion #{sID} has been added!", $"Your suggestion has been posted in {suggestionChannel.Mention}, with sID: {sID}. Please wait for staff decision on your suggestion.", ctx.Channel).ConfigureAwait(false);
+            {                
+                await BotServices.SendDMEmbedAsync(ctx.Member, $"Suggestion #{sID} has been added!", $"Your suggestion has been posted in {suggestionChannel.Mention}, with sID: {sID}. Make sure to {upvoteEmote} Upvote your suggestion as well. Please wait for staff decision on your suggestion.", ctx.Channel).ConfigureAwait(false);
             }
             
         }
@@ -102,7 +102,7 @@ namespace AquacraftBot.Commands.SuggestionCmds
                 var msg = await decisionChannel.SendMessageAsync(embed.Build()).ConfigureAwait(false);
 
                 if (SuggestionService.DMonDecision && member != null)
-                    await BotServices.SendDMEmbedAsync(member, $"Suggestion #{sID} has been approved!", $"Your suggestion with sID:`{sID}` has been approved in {decisionChannel.Mention}. Thank you for the suggestion! Response: {msg.JumpLink}.", ctx.Channel).ConfigureAwait(false);
+                    await BotServices.SendDMEmbedAsync(member, $"Suggestion #{sID} has been approved!", $"Your suggestion with sID:`{sID}` has been approved in {decisionChannel.Mention}. Thank you for the suggestion! Response: {msg.JumpLink}.", ctx.Channel, ResponseType.Default).ConfigureAwait(false);
 
                 //deletes the suggestion msg and the suggestion doc on firestore
                 await suggestionRef.DeleteAsync();
@@ -147,7 +147,7 @@ namespace AquacraftBot.Commands.SuggestionCmds
                 var msg = await decisionChannel.SendMessageAsync(embed.Build()).ConfigureAwait(false);
 
                 if (SuggestionService.DMonDecision && member != null)
-                    await BotServices.SendDMEmbedAsync(member, $"Suggestion #{sID} has been approved!", $"Your suggestion with sID:`{sID}` has been denied in {decisionChannel.Mention}. Thank you for the suggestion! Response: {msg.JumpLink}.", ctx.Channel).ConfigureAwait(false);
+                    await BotServices.SendDMEmbedAsync(member, $"Suggestion #{sID} has been denied!", $"Your suggestion with sID:`{sID}` has been denied in {decisionChannel.Mention}. Thank you for the suggestion! Response: {msg.JumpLink}.", ctx.Channel, ResponseType.Error).ConfigureAwait(false);
 
                 //deletes the suggestion msg and the suggestion doc on firestore
                 await suggestionRef.DeleteAsync();
@@ -192,7 +192,7 @@ namespace AquacraftBot.Commands.SuggestionCmds
                 var msg = await decisionChannel.SendMessageAsync(embed.Build()).ConfigureAwait(false);
 
                 if (SuggestionService.DMonDecision && member != null)
-                    await BotServices.SendDMEmbedAsync(member, $"Suggestion #{sID} has been approved!", $"Your suggestion with sID:`{sID}` has been implemented in {decisionChannel.Mention}. Thank you for the suggestion! Response: {msg.JumpLink}.", ctx.Channel).ConfigureAwait(false);
+                    await BotServices.SendDMEmbedAsync(member, $"Suggestion #{sID} has been implemented!", $"Your suggestion with sID:`{sID}` has been implemented in {decisionChannel.Mention}. Thank you for the suggestion! Response: {msg.JumpLink}.", ctx.Channel, ResponseType.Default).ConfigureAwait(false);
 
                 //deletes the suggestion msg and the suggestion doc on firestore
                 await suggestionRef.DeleteAsync();
@@ -236,7 +236,7 @@ namespace AquacraftBot.Commands.SuggestionCmds
                 var msg = await decisionChannel.SendMessageAsync(embed.Build()).ConfigureAwait(false);
 
                 if (SuggestionService.DMonDecision && member != null)
-                    await BotServices.SendDMEmbedAsync(member, $"Suggestion #{sID} has been approved!", $"Your suggestion with sID:`{sID}` is in consideration in {decisionChannel.Mention}. Thank you for the suggestion! Response: {msg.JumpLink}.", ctx.Channel).ConfigureAwait(false);
+                    await BotServices.SendDMEmbedAsync(member, $"Suggestion #{sID} is in consideration!", $"Your suggestion with sID:`{sID}` is in consideration in {decisionChannel.Mention}. Thank you for the suggestion! Response: {msg.JumpLink}.", ctx.Channel,ResponseType.Warning).ConfigureAwait(false);
 
                 //deletes the suggestion msg and the suggestion doc on firestore
                 await suggestionRef.DeleteAsync();
@@ -253,7 +253,7 @@ namespace AquacraftBot.Commands.SuggestionCmds
         {
             //gets the reactions from the msg and write to a string enumerable
             var result = suggestionMsg.Reactions;
-            var results = result.Select(x => $"{x.Emoji}: {x.Count - 1}");
+            var results = result.Select(x => $"{x.Emoji}: **{x.Count - 1}**");
 
             var decisionEmbed = new DiscordEmbedBuilder()
                 .WithAuthor(submitter.Username, null, submitter.AvatarUrl)
