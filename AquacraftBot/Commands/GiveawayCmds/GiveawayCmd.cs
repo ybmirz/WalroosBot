@@ -343,8 +343,10 @@ namespace AquacraftBot.Commands.GiveawayCmds
                 }
                 var gEmbed = GiveawayService.endedEmbedAsync(gItem, winners, hoster);
 
-                await gMsg.ModifyAsync($":piñata: **GIVEAWAY ENDED** :piñata:", gEmbed.Build()).ConfigureAwait(false);
-                string EndingMsg = $"Congratulations {string.Join(",",winners.Select(w=>w.Mention))}! You won **{gItem.PrizeTitle}**! :koi:\n{gMsg.JumpLink}";
+                var pinata = DiscordEmoji.FromName(client, ":piñata:");
+                await gMsg.ModifyAsync($"{pinata} **GIVEAWAY ENDED** {pinata}", gEmbed.Build()).ConfigureAwait(false);
+                var emote = DiscordEmoji.FromName(ctx.Client, ":koi:");
+                string EndingMsg = $"Congratulations {string.Join(",",winners.Select(w=>w.Mention))}! You won **{gItem.PrizeTitle}**! {emote}:\n{gMsg.JumpLink}";
                 await gChannel.SendMessageAsync(EndingMsg).ConfigureAwait(false);
 
                 GlobalData.GiveawayTimers[gItem.gID].Stop();
@@ -424,8 +426,10 @@ namespace AquacraftBot.Commands.GiveawayCmds
                     }
                     var gEmbed = GiveawayService.endedEmbedAsync(gItem, winners, hoster);
 
-                    await gMsg.ModifyAsync($":piñata: **GIVEAWAY ENDED** :piñata:", gEmbed.Build()).ConfigureAwait(false);
-                    string EndingMsg = $"Congratulations, the new winners are {string.Join(",", winners.Select(w => w.Mention))}! You won **{gItem.PrizeTitle}**! :koi:\n{gMsg.JumpLink}";
+                    var emote = DiscordEmoji.FromName(ctx.Client, ":koi:");
+                    var pinata = DiscordEmoji.FromName(ctx.Client, ":piñata:");
+                    await gMsg.ModifyAsync($"{pinata} **GIVEAWAY ENDED** {pinata}", gEmbed.Build()).ConfigureAwait(false);
+                    string EndingMsg = $"Congratulations, the new winners are {string.Join(",", winners.Select(w => w.Mention))}! You won **{gItem.PrizeTitle}**! {emote}\n{gMsg.JumpLink}";
                     await gChannel.SendMessageAsync(EndingMsg).ConfigureAwait(false);
 
                     GlobalData.GiveawayTimers[gItem.gID].Stop();

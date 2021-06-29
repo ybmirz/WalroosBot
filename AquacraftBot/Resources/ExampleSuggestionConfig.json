@@ -2,5 +2,6 @@
   "SuggestionChannel": 850356140205146123,
   "DecisionChannel": 850356157285138483,
   "VotingThreshold": 5,
-  "DMonDecision": true
+  "DMonDecision": true,
+  "RefreshVoteOnEdit":  false
 }

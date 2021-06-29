@@ -292,7 +292,8 @@ namespace AquacraftBot.Commands.SuggestionCmds
             string desc = "Suggestion channel: " + suggestionChannel.Mention +"\n" +
                 "Decision channel: " + decisionChannel.Mention + "\n" +
                 "Voting Threshold (Difference between upvotes and downvotes for the suggestion color to be sent to owner. NOT IMPLEMENTED): " + SuggestionService.VotingThreshold + "\n" +
-                "Submitter DM Notification (Notify suggestion submitter on decision of suggestion): " + SuggestionService.DMonDecision;
+                "Submitter DM Notification (Notify suggestion submitter on decision of suggestion): " + SuggestionService.DMonDecision + "\n" +
+                "Refresh Suggestion's Voting when Edited: " + SuggestionService.RefreshVoteOnEdit;
 
             var embed = new DiscordEmbedBuilder()
                 .WithColor(GlobalData.defaultColour)
@@ -302,6 +303,122 @@ namespace AquacraftBot.Commands.SuggestionCmds
             await ctx.RespondAsync(embed.Build()).ConfigureAwait(false);    
         }
         #endregion SuggestionInfo
+
+        #region SuggestionInteract
+        // Suggestion Edit and Suggestion Info 
+        [Command("suggestionedit"), Description("Edits the suggestion of a specific suggestion (rewrites the suggestion), can only be done to a person's specific suggestion or Moderator edit. Please keep in mind that editing a suggestion will re-start the suggestion's votes (can be edited in config). ")]
+        [Aliases("sedit", "suggestedit")]
+        [GroupName(Group.Suggestion)]
+        public async Task SuggestEdit(CommandContext ctx, string sID,[RemainingText]string edit = null)
+        {
+            DocumentReference suggestionRef = GlobalData.database.Collection("Suggestions").Document(sID);
+            DocumentSnapshot suggestionSnap = await suggestionRef.GetSnapshotAsync();
+
+            if (suggestionSnap.Exists) // basically means that the document/suggestion exists
+            {
+                SuggestionModel suggestion = suggestionSnap.ConvertTo<SuggestionModel>();
+                if (string.IsNullOrEmpty(edit))
+                    edit = suggestion.Content;
+                DiscordMessage suggestionMsg = await ctx.Channel.GetMessageAsync(suggestion.MessageID).ConfigureAwait(false);
+                if (ctx.User.Id == suggestion.SubmitterID)
+                {
+                    // Context user is submitter, edits the suggestion on the database and then modifies message with new suggestion embed
+                    suggestion.Content = edit;
+                    await suggestionRef.SetAsync(suggestion);
+                    DiscordUser submitter = ctx.User;
+                    var newsEmbed = new DiscordEmbedBuilder() // default suggestion embed
+                    .WithColor(GlobalData.defaultColour)
+                    .WithTimestamp(DateTime.Now)
+                    .WithFooter("sID: " + suggestion.sID)
+                    .WithThumbnail(submitter.AvatarUrl);
+
+                    newsEmbed.AddField(Formatter.Bold("Submitter:"), submitter.Username + "#" + submitter.Discriminator);
+                    newsEmbed.AddField(Formatter.Bold("Suggestion:"), suggestion.Content);
+
+                    await suggestionMsg.ModifyAsync(embed: newsEmbed.Build()).ConfigureAwait(false);
+                    if (SuggestionService.RefreshVoteOnEdit) // it does refresh vote
+                    {
+                        await suggestionMsg.DeleteAllReactionsAsync().ConfigureAwait(false);
+                        var upvoteEmote = DiscordEmoji.FromName(ctx.Client, ":arrow_up:");
+                        var downvoteEmote = DiscordEmoji.FromName(ctx.Client, ":arrow_down:");
+
+                        await suggestionMsg.CreateReactionAsync(upvoteEmote).ConfigureAwait(false);
+                        await suggestionMsg.CreateReactionAsync(downvoteEmote).ConfigureAwait(false);
+                    }
+                }
+                else if (ctx.Member.PermissionsIn(ctx.Channel).HasPermission(Permissions.ManageChannels)) // Mod Editing the Suggestion
+                {
+                    // Similar to the above but instead of being the user resubmitting, it's a mod (with managechannels permission)
+                    suggestion.Content += "\n**Mod Note:**\n" + edit;
+                    await suggestionRef.SetAsync(suggestion);
+                    DiscordUser submitter = await ctx.Client.GetUserAsync(suggestion.SubmitterID).ConfigureAwait(false);
+                    var newsEmbed = new DiscordEmbedBuilder() // default suggestion embed
+                    .WithColor(GlobalData.defaultColour)
+                    .WithTimestamp(DateTime.Now)
+                    .WithFooter("sID: " + suggestion.sID)
+                    .WithThumbnail(submitter.AvatarUrl);
+
+                    newsEmbed.AddField(Formatter.Bold("Submitter:"), submitter.Username + "#" + submitter.Discriminator);
+                    newsEmbed.AddField(Formatter.Bold("Suggestion:"), suggestion.Content);
+
+                    await suggestionMsg.ModifyAsync(embed: newsEmbed.Build()).ConfigureAwait(false);
+                    if (SuggestionService.RefreshVoteOnEdit) // it does refresh vote
+                    {
+                        await suggestionMsg.DeleteAllReactionsAsync().ConfigureAwait(false);
+                        var upvoteEmote = DiscordEmoji.FromName(ctx.Client, ":arrow_up:");
+                        var downvoteEmote = DiscordEmoji.FromName(ctx.Client, ":arrow_down:");
+
+                        await suggestionMsg.CreateReactionAsync(upvoteEmote).ConfigureAwait(false);
+                        await suggestionMsg.CreateReactionAsync(downvoteEmote).ConfigureAwait(false);
+                    }
+                }
+                else
+                {
+                    await BotServices.SendEmbedAsync(ctx, "Suggestion Error", 
+                        $"Suggestion with sID: {sID} was not submitted by you. You can only edit suggestions that you have submitted. If this suggestion is yours, please use `{GlobalData.prefixes[0]}info` to contact the developer.",
+                    ResponseType.Error).ConfigureAwait(false);
+                }
+            }
+            else
+            {
+                await BotServices.SendEmbedAsync(ctx, "Suggestion Not Found", $"Suggestion with sID: {sID} was not found. If this suggestion does exist, please use `{GlobalData.prefixes[0]}info` to contact the developer.",
+                    ResponseType.Error).ConfigureAwait(false);
+            }
+            await ctx.Message.DeleteAsync().ConfigureAwait(false);
+        }
+
+        [Command("remove"), Description("Removes the suggestion from the database and the message in the channel and notifies the user")]
+        [Aliases("sremove", "suggestionremove")]
+        [GroupName(Group.Suggestion)]
+        [RequirePermissions(Permissions.ManageChannels)]
+        public async Task SuggestRemove(CommandContext ctx, string sID,[RemainingText] string reason = "No Reason Given.")
+        {
+            DocumentReference suggestionRef = GlobalData.database.Collection("Suggestions").Document(sID);
+            DocumentSnapshot suggestionSnap = await suggestionRef.GetSnapshotAsync();
+
+            if (suggestionSnap.Exists) // basically means that the document/suggestion exists
+            {
+                SuggestionModel suggestion = suggestionSnap.ConvertTo<SuggestionModel>();
+                DiscordMessage sMsg = await ctx.Channel.GetMessageAsync(suggestion.MessageID).ConfigureAwait(false);                
+
+                await sMsg.DeleteAsync().ConfigureAwait(false);
+                await suggestionRef.DeleteAsync().ConfigureAwait(false);
+
+                try
+                {
+                    DiscordMember sMember = await ctx.Guild.GetMemberAsync(suggestion.SubmitterID).ConfigureAwait(false);
+                    await BotServices.SendDMEmbedAsync(sMember, $"Suggestion Removed", $"Your Suggestion **#{suggestion.sID}** has been removed, its content: `{suggestion.Content}`. It has been deleted by {ctx.User.Mention} for `{reason}`. Thank you.", ctx.Channel, ResponseType.Error);
+                } catch
+                { }
+
+                await ctx.RespondAsync($"Suggestion **#{suggestion.sID}** has been removed for `{reason}`.").ConfigureAwait(false);
+
+            } else
+                await BotServices.SendEmbedAsync(ctx, "Suggestion Not Found", $"Suggestion with sID: {sID} was not found. If this suggestion does exist, please use `{GlobalData.prefixes[0]}info` to contact the developer.",
+                       ResponseType.Error).ConfigureAwait(false);
+            await ctx.Message.DeleteAsync().ConfigureAwait(false);
+        }
+        #endregion SuggestionInteract
     }
 
     public enum DecisionType

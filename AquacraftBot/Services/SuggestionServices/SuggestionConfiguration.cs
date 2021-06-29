@@ -15,6 +15,8 @@ namespace AquacraftBot.Services.SuggestionServices
         public int Threshold { get; set; }
         [JsonProperty("DMonDecision")]
         public bool DMonDecision { get; set; }
+        [JsonProperty("RefreshVoteOnEdit")]
+        public bool RefreshVoteOnEdit { get; set; }
     }
     public partial class SuggestionConfiguration
     {

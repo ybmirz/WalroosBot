@@ -162,8 +162,10 @@ namespace AquacraftBot.Services.GiveawayServices
             }
             var gEmbed = endedEmbedAsync(gItem, winners, hoster);
 
-            await gMsg.ModifyAsync($":piñata: **GIVEAWAY ENDED** :piñata:", gEmbed.Build()).ConfigureAwait(false);
-            string EndingMsg = $"Congratulations {string.Join(",", winners.Select(w=>w.Mention))}! You won **{gItem.PrizeTitle}**! :koi:\n{gMsg.JumpLink}";
+            var emote = DiscordEmoji.FromName(client, ":koi:");
+            var pinata = DiscordEmoji.FromName(client, ":piñata:");
+            await gMsg.ModifyAsync($"{pinata} **GIVEAWAY ENDED** {pinata}", gEmbed.Build()).ConfigureAwait(false);
+            string EndingMsg = $"Congratulations {string.Join(",", winners.Select(w=>w.Mention))}! You won **{gItem.PrizeTitle}**! {emote}\n{gMsg.JumpLink}";
             await gChannel.SendMessageAsync(EndingMsg).ConfigureAwait(false);
 
             GlobalData.GiveawayTimers[gItem.gID].Stop();

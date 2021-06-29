@@ -15,5 +15,6 @@ namespace AquacraftBot.Services.SuggestionServices
         public static ulong DecisionChannel;
         public static int VotingThreshold;
         public static bool DMonDecision;
+        public static bool RefreshVoteOnEdit;
     }
 }
