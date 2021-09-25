@@ -1,3 +1,5 @@
+<img src="transparent_AquaLogo.png" align="right" width="100px"/>
+
 # WalroosBot
 A custom discord bot made for the Minecraft server I'm currently managing, [Aquacraft](https://aquacraft.ca/). It's a grind-worthy cracked Minecraft server, built by grinders, for grinders, with gamemodes such as OP Survival, Skyblock and Minigames. Learn more about us [here!](https://aquacraft.ca/about/)
 
